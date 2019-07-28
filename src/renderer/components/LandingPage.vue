@@ -3,10 +3,11 @@
     <img id="logo" src="~@/assets/logo.png" alt="electron-vue">
     <main>
       <div class="left-side">
-        <span class="title">
-          Welcome to your new project!
-        </span>
-        <system-information></system-information>
+        <ul>
+          <li v-for="file in files" :key="file.name">
+            {{ file.name }}
+          </li>
+        </ul>
       </div>
 
       <div class="right-side">
@@ -31,11 +32,47 @@
 
 <script>
   import SystemInformation from './LandingPage/SystemInformation'
+  import fs from 'fs'
+  import path from 'path'
 
   export default {
     name: 'landing-page',
     components: { SystemInformation },
+
+    data () {
+      return {
+        files: []
+      }
+    },
+
+    async created () {
+      this.files = await this.read(process.cwd())
+    },
+
     methods: {
+      read (dir) {
+        return new Promise((resolve, reject) => {
+          fs.readdir(dir, async (error, files) => {
+            if (error) return reject(error)
+
+            let wait = []
+            let originalResolve = resolve
+            for (let file of files) {
+              let fullPath = path.join(dir, file)
+              wait.push(new Promise((resolve, reject) => {
+                fs.stat(fullPath, (err, stats) => {
+                  if (err) return reject(err)
+                  resolve({ name: file, path: fullPath, stats })
+                })
+              }))
+            }
+
+            let result = await Promise.all(wait)
+            originalResolve(result)
+          })
+        })
+      },
+
       open (link) {
         this.$electron.shell.openExternal(link)
       }
